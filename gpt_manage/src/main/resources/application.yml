@@ -1,0 +1,8 @@
+server:
+  port: 8081
+# milvus配置
+milvus:
+  ip: 101.43.76.117
+  port: 19530
+# open ai 的秘钥
+openAIkey: Bearer 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

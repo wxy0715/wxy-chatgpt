@@ -5,4 +5,12 @@ milvus:
   ip: 101.43.76.117
   port: 19530
 # open ai 的秘钥
-openAIkey: Bearer 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
+openAIkey: Bearer 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
+
+elasticsearch:
+  host: 23.224.144.38:9200
+  max_connect_total: 30
+  elasticsearch.max_connect_per_route: 10
+  elasticsearch.connection_request_timeout_millis: 3333
+  elasticsearch.socket_timeout_millis: 30000
+  elasticsearch.connect_timeout_millis: 2000

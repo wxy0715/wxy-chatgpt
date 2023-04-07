@@ -7,7 +7,7 @@ module.exports = defineConfig({
         //websocket
         ws:false,
         //目标地址
-        target:'http://localhost:8081',
+        target:'https://www.opuxrcm.cn/api',
         //发送请求头host会被设置为target
         changeOrigin: true,
         //重写请求路径

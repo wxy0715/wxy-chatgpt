@@ -32,8 +32,8 @@ public class ChatConfig {
     @Bean
     public OkHttpClient openAIHttpClient(){
         return new OkHttpClient.Builder().callTimeout(Duration.ofMinutes(1)).connectTimeout(100, TimeUnit.SECONDS)
+                //.proxy(new Proxy(Proxy.Type.HTTP,new InetSocketAddress("20.191.183.38",3129)))
                 .readTimeout(100, TimeUnit.SECONDS)
-                //.proxy(new Proxy(Proxy.Type.HTTP,new InetSocketAddress("p1.bxy-node.top",31107)))
                 .build();
     }
 

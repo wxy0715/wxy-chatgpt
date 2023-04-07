@@ -2,9 +2,11 @@ package com.wxy.chatgpt.service.impl;
 
 import com.wxy.chatgpt.config.ThreadPoolFactory;
 import com.wxy.chatgpt.entity.MilvusPo;
-import com.wxy.chatgpt.entity.cmd.SaveQuestionCmd;
+import com.wxy.chatgpt.entity.QuestionQry;
 import com.wxy.chatgpt.entity.out.EmbeddingsApiOut;
 import com.wxy.chatgpt.entity.out.QuestionOut;
+import com.wxy.chatgpt.esdata.SaveQuestionCmd;
+import com.wxy.chatgpt.repository.QuestionRepository;
 import com.wxy.chatgpt.rpc.ChatGptRpcService;
 import com.wxy.chatgpt.rpc.EmbeddingRpcService;
 import com.wxy.chatgpt.service.IChatGptService;
@@ -19,17 +21,27 @@ import io.milvus.param.collection.ReleaseCollectionParam;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.response.SearchResultsWrapper;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.query.MatchAllQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.zxp.esclientrhl.util.JsonUtils;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  * impl gpt聊天服务
@@ -47,21 +59,80 @@ public class ChatGptServiceImpl implements IChatGptService {
     private ChatGptRpcService chatGptRpcService;
     @Resource
     private EmbeddingRpcService embeddingRpcService;
+    @Resource
+    private QuestionRepository questionRepository;
 
     /**
-     * todo 根据问题出结果+多线程
-     * @param question 问题
+     * 聊天
+     * @param questionQry 问题
      * @return {@code String}
      */
     @Override
-    public QuestionOut question(String question) {
+    public List<SaveQuestionCmd> question(QuestionQry questionQry) {
+        List<SaveQuestionCmd> list = new ArrayList<>();
+        SearchResponse search;
+        try {
+            if (!ObjectUtils.isEmpty(questionQry.getQuestion())) {
+                QueryBuilder queryBuilder = QueryBuilders.matchQuery("question",questionQry.getQuestion());
+                SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+                searchSourceBuilder.query(queryBuilder);
+                SearchRequest searchRequest = new SearchRequest();
+                searchSourceBuilder.sort(new FieldSortBuilder("createDate").order(SortOrder.DESC));
+                searchRequest.source(searchSourceBuilder);
+                search = questionRepository.search(searchRequest);
+            } else {
+                MatchAllQueryBuilder matchAllQueryBuilder = QueryBuilders.matchAllQuery();
+                SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+                searchSourceBuilder.query(matchAllQueryBuilder);
+                SearchRequest searchRequest = new SearchRequest();
+                searchSourceBuilder.sort(new FieldSortBuilder("createDate").order(SortOrder.DESC));
+                searchRequest.source(searchSourceBuilder);
+                search = questionRepository.search(searchRequest);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("查询失败:"+e.getMessage());
+        }
+        SearchHits hits = search.getHits();
+        SearchHit[] searchHits = hits.getHits();
+        for (SearchHit hit : searchHits) {
+            SaveQuestionCmd t = JsonUtils.string2Obj(hit.getSourceAsString(), SaveQuestionCmd.class);
+            //将_id字段重新赋值给@ESID注解的字段
+            t.setQuestionId(hit.getId());
+            list.add(t);
+        }
+        return list;
+    }
+
+    /**
+     * 保存向量数据
+     * @param saveQuestionCmd 问题
+     */
+    @Override
+    public Long saveQuestion(SaveQuestionCmd saveQuestionCmd){
+        try {
+            questionRepository.save(saveQuestionCmd);
+        } catch (Exception e) {
+            throw new RuntimeException("插入数据失败");
+        }
+        return 1L;
+    }
+
+
+
+
+
+    /**
+     * @param question 问题
+     * @return {@code String}
+     */
+    public QuestionOut questionOld(String question) {
         QuestionOut questionOut = new QuestionOut();
         // 1.直接从chatgpt获取结果
         CompletableFuture<String> integerCompletableFuture = CompletableFuture.supplyAsync(() -> {
             String result = chatGptRpcService.question(question);
             return result;
         }, ThreadPoolFactory.threadPoolExecutor);
-/*        CompletableFuture<List<MilvusPo>> integerCompletableFuture1 = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<List<MilvusPo>> integerCompletableFuture1 = CompletableFuture.supplyAsync(() -> {
             // 2.获取question的向量,根据向量匹配获取结果
             EmbeddingsApiOut embedding = embeddingRpcService.getEmbedding(question);
             if(embedding != null) {
@@ -69,12 +140,12 @@ public class ChatGptServiceImpl implements IChatGptService {
                 return milvusSearch(Collections.singletonList(vector));
             }
             return new ArrayList<>();
-        }, ThreadPoolFactory.threadPoolExecutor);*/
+        }, ThreadPoolFactory.threadPoolExecutor);
         try {
             String gpt = integerCompletableFuture.get();
-            //List<MilvusPo> questionOut2 = integerCompletableFuture1.get();
+            List<MilvusPo> questionOut2 = integerCompletableFuture1.get();
             questionOut.setGpt(gpt);
-            //questionOut.setMilvusResult(questionOut2);
+            questionOut.setMilvusResult(questionOut2);
         } catch (Exception e) {
             return questionOut;
         }
@@ -147,8 +218,8 @@ public class ChatGptServiceImpl implements IChatGptService {
      * 保存向量数据
      * @param saveQuestionCmd 问题
      */
-    @Override
-    public Long saveQuestion(SaveQuestionCmd saveQuestionCmd){
+
+    public Long saveQuestionOld(SaveQuestionCmd saveQuestionCmd){
         if (ObjectUtils.isEmpty(saveQuestionCmd.getQuestion().trim())) {
             return null;
         }
@@ -173,4 +244,6 @@ public class ChatGptServiceImpl implements IChatGptService {
         log.info("插入向量数据返回结果ID:{}",insert.getData().getIDs().getIntId().getData(0));
         return insert.getData().getIDs().getIntId().getData(0);
    }
+
+
 }

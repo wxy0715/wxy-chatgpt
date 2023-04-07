@@ -5,19 +5,30 @@
     element-loading-spinner="el-icon-loading"
     element-loading-background="rgba(0, 0, 0, 0.8)"
   >
-    <div style="width: 50%;left:0;right:0;margin:0 auto;margin-top: 50px;">
-      <el-input placeholder="请输入问题" v-model="question">
+  <!-- 搜索区域 -->
+    <div style="width: 50%;left:0;right:0;margin:0 auto;margin-top: 50px;display: flex;">
+      <el-input  placeholder="请输入问题" v-model="question">
       </el-input>
+      <el-select v-model="answerTypeValue">
+        <el-option
+          v-for="item in answerTypeList"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value">
+        </el-option>
+      </el-select>
     </div>
+    <!-- 回答区域 -->
     <div style="width: 70%;left:0;right:0;margin:0 auto;margin-top: 40px;">回答:</div>
-    <!-- <div style="width: 70%;left:0;right:0;margin:0 auto;margin-top: 10px;border: 1px solid #ccc">
+    <!-- 富文本格式 -->
+    <div v-if="answerTypeValue == 'editor'" style="width: 70%;left:0;right:0;margin:0 auto;margin-top: 10px;border: 1px solid #ccc">
       <Toolbar style="border-bottom: 1px solid #ccc" :editor="editor" :defaultConfig="toolbarConfig" :mode="mode" />
-      <Editor style="height: 500px; overflow-y: hidden;" v-model="answer" :defaultConfig="editorConfig" :mode="mode"
+      <Editor style="height: 500px; overflow-y: hidden;" v-model="answerEditor" :defaultConfig="editorConfig" :mode="mode"
         @onCreated="onCreated" />
-    </div> -->
-
-    <div class="markdown"  style="width: 80%;left:0;right:0;margin:0 auto;margin-top: 10px;border: 1px solid #ccc">
-      <mavon-editor v-model="answer" style="min-height: 70vh; max-height: 70vh;" :navigation=true />
+    </div>
+    <!-- markdown格式 -->
+    <div v-if="answerTypeValue == 'markdown'" class="markdown"  style="width: 80%;left:0;right:0;margin:0 auto;margin-top: 10px;border: 1px solid #ccc">
+      <mavon-editor :boxShadow="false" v-model="answerMarkdown" style="min-height: 570px; max-height: 70vh;" :navigation=true />
     </div>
     <div style="width: 80%;left:0;right:0;margin:0 auto;margin-top: 10px;">
       <el-button style="float: right;" type="primary" @click="save()">保存</el-button>
@@ -33,12 +44,22 @@ export default {
   data() {
     return {
       editor: null,
-      answer: '',
+      answerMarkdown: '',
+      answerEditor: '',
       toolbarConfig: {},
       editorConfig: { placeholder: '请输入内容...' },
       mode: 'default', // or 'simple'
       question: '',
-      loading:false
+      loading:false,
+      answerTypeList: [{
+          value: 'markdown',
+          label: 'markdown'
+        },{
+          value: 'editor',
+          label: '富文本'
+        }
+      ],
+      answerTypeValue: 'editor'
     }
   },
   methods: {
@@ -46,7 +67,6 @@ export default {
       this.editor = Object.seal(editor) // 一定要用 Object.seal() ，否则会报错
     },
     save() {
-      debugger
       if (this.question.trim() == '') {
         this.$message({
           message: '请输入问题',
@@ -54,7 +74,11 @@ export default {
         });
         return
       }
-      if (this.answer.trim() == '') {
+      let answer = this.answerEditor
+      if (this.answerTypeValue == 'markdown') {
+        answer = this.answerMarkdown
+      }
+      if (answer.trim() == '') {
         this.$message({
           message: '请输入回答',
           type: 'warn'
@@ -64,21 +88,21 @@ export default {
       this.loading = true
       api.saveQuestion({
         question: this.question,
-        answer:this.answer
+        answerTypeValue: this.answerTypeValue,
+        answer:answer
       }).then(() => {
         this.$message({
           message: '保存成功',
           type: 'success'
         });
-        this.question = ""
-        this.answer = ""
       }).finally(()=>{
         this.loading = false
+        this.question = ""
+        this.answer = ""
+        this.answerEditor = ""
+        this.answerMarkdown = ""
       })
     }
-  },
-  mounted() {
-
   },
   beforeDestroy() {
     const editor = this.editor

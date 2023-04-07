@@ -1,11 +1,12 @@
 package com.wxy.chatgpt.controller;
 
-import com.wxy.chatgpt.entity.cmd.SaveQuestionCmd;
-import com.wxy.chatgpt.entity.out.QuestionOut;
+import com.wxy.chatgpt.entity.QuestionQry;
+import com.wxy.chatgpt.esdata.SaveQuestionCmd;
 import com.wxy.chatgpt.service.IChatGptService;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 /**
  * 问答
@@ -18,9 +19,9 @@ public class ChatGptController {
     @Resource
     private IChatGptService chatGptService;
 
-    @GetMapping("/question")
-    public QuestionOut question(@RequestParam String question){
-        return chatGptService.question(question);
+    @PostMapping("/question")
+    public List<SaveQuestionCmd> question(@RequestBody QuestionQry questionQry){
+        return chatGptService.question(questionQry);
     }
 
     @PostMapping("/saveQuestion")

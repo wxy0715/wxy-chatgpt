@@ -1,8 +1,8 @@
 package com.wxy.chatgpt.service;
 
 import com.wxy.chatgpt.entity.MilvusPo;
-import com.wxy.chatgpt.entity.cmd.SaveQuestionCmd;
-import com.wxy.chatgpt.entity.out.QuestionOut;
+import com.wxy.chatgpt.entity.QuestionQry;
+import com.wxy.chatgpt.esdata.SaveQuestionCmd;
 
 import java.util.List;
 
@@ -13,10 +13,10 @@ import java.util.List;
 public interface IChatGptService {
     /**
      * 聊天
-     * @param question 问题
+     * @param questionQry 问题
      * @return {@code String}
      */
-    QuestionOut question(String question);
+    List<SaveQuestionCmd> question(QuestionQry questionQry);
 
     /**
      * 搜索
